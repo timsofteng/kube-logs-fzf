@@ -19,10 +19,7 @@ Conveniently view logs using fzf.
     - Mappings used for common explorer actions.
     - UI options: whether to show preview of file/directory under cursor, etc.
 
-See `*MiniFiles-examples*` tag in help file for some common configuration examples.
-
 Notes:
-
 - This script is written and thoroughly tested on UNIX. Support for other platform/OS (like Windows) is no guarantee.
 
 
