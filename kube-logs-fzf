@@ -1,0 +1,166 @@
+#!/bin/sh
+# CONFIG ########
+namespace=""
+#################
+
+# ARGUMENTS #####
+skip_picking=0
+default_pods=""
+advanced_mode=0
+#################
+
+requiredBins="
+fzf
+sed
+grep
+xargs
+kubectl
+"
+
+advanced_mode_bins="lnav"
+
+print_help() {
+	printf "%s" \
+		"Usage: bin_name [OPTIONS...]
+    OPTIONS:
+        -h                      Show this help text
+
+        -A                      Advanced mode
+
+        -S                      Skip picking stage
+
+        -p                      Pods names
+
+        -n                      Namespace
+"
+}
+
+cleanup() {
+	pkill -P $$
+	exit 1
+}
+
+trap cleanup INT
+
+check_bins() {
+	list="$1"
+
+	for bin in $list; do
+		if ! which "$bin" >/dev/null 2>&1; then
+			echo "Error: no required app - '$bin'."
+			exit 1
+		fi
+	done
+}
+
+parse_opts() {
+	while getopts "n:p:SAh" opt; do
+		case "$opt" in
+		h)
+			print_help
+			exit 0
+			;;
+		n)
+			namespace=$OPTARG
+			;;
+		p)
+			default_pods=$(echo "$OPTARG" | sed 's/,/|/g')
+			;;
+		S)
+			skip_picking=1
+			;;
+		A)
+			check_bins "$advanced_mode_bins"
+			advanced_mode=1
+			;;
+		\?)
+			echo "Invalid option: -${OPTARG}."
+			exit 1
+			;;
+		esac
+	done
+}
+
+check_pod_list() {
+	list="$1"
+	num_lines=$(printf "%s\n" "$list" | wc -l)
+
+	if [ "$num_lines" -eq 0 ]; then
+		printf "No pods."
+		exit 1
+	fi
+}
+
+get_pod_list() {
+	kubectl -n "$namespace" get pods -o name | grep -E "$default_pods"
+}
+
+get_kube_log_cmd() {
+	pod="$1"
+	echo "kubectl -n $namespace logs $pod --tail=100 --follow"
+}
+
+get_fzf_opt() {
+	multi="$1"
+
+	preview_cmd="$(get_kube_log_cmd {})"
+
+	fzf_options="--info=inline \
+    --reverse \
+    --preview '$preview_cmd' \
+    --preview-window 'follow,75%'"
+
+	if [ $multi -eq 1 ]; then
+		fzf_options="$fzf_options --multi"
+	fi
+
+	echo "$fzf_options"
+}
+
+process_logs_advanced() {
+	selected_pods="$1"
+	lnavArgs=""
+	while IFS= read -r line; do
+		log_cmd=$(get_kube_log_cmd "$line")
+		lnavArgs="${lnavArgs}-e \"$log_cmd\" "
+	done <<EOF
+$selected_pods
+EOF
+
+	echo "$lnavArgs" | xargs lnav
+}
+
+main() {
+	check_bins "$requiredBins"
+	parse_opts "$@"
+
+	pod_list=$(get_pod_list)
+	selected_pods=""
+
+	check_pod_list "$pod_list"
+
+	if [ $skip_picking -eq 1 ]; then
+		selected_pods=$pod_list
+	else
+		fzf_options=$(get_fzf_opt "$advanced_mode")
+
+		selected_pods=$(echo "$pod_list" | eval fzf "$fzf_options")
+		if [ $? -ne 0 ]; then
+			cleanup
+		fi
+	fi
+
+	if [ $advanced_mode -eq 1 ]; then
+		process_logs_advanced "$selected_pods"
+	else
+		cmd=$(get_kube_log_cmd $selected_pods)
+		eval "$cmd" 
+	fi
+
+}
+
+main "$@"
+
+cleanup
+# vim: foldmethod=marker:shiftwidth=2:tabstop=2
+
