@@ -1,6 +1,6 @@
 #!/bin/sh
 # CONFIG ########
-namespace=""
+namespace="${KUBE_LOGS_FZF_NAMESPACE}"
 #################
 
 # ARGUMENTS #####
@@ -153,8 +153,16 @@ main() {
 	if [ $advanced_mode -eq 1 ]; then
 		process_logs_advanced "$selected_pods"
 	else
-		cmd=$(get_kube_log_cmd $selected_pods)
-		eval "$cmd" 
+
+		pods_count=$(echo "$selected_pods" | wc -l)
+
+		if [ "$pods_count" -gt 1 ]; then
+			echo "There are more than 1 pod. Use advanced mod."
+			exit 1
+		fi
+
+		cmd=$(get_kube_log_cmd "$selected_pods")
+		eval "$cmd"
 	fi
 
 }
@@ -163,4 +171,3 @@ main "$@"
 
 cleanup
 # vim: foldmethod=marker:shiftwidth=2:tabstop=2
-
