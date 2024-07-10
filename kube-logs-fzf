@@ -120,12 +120,11 @@ get_fzf_opt() {
 process_logs_advanced() {
 	selected_pods="$1"
 	lnavArgs=""
-	while IFS= read -r line; do
-		log_cmd=$(get_kube_log_cmd "$line")
+
+	for pod in $selected_pods; do
+		log_cmd=$(get_kube_log_cmd "$pod")
 		lnavArgs="${lnavArgs}-e \"$log_cmd\" "
-	done <<EOF
-$selected_pods
-EOF
+	done
 
 	echo "$lnavArgs" | xargs lnav
 }
