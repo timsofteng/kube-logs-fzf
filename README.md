@@ -62,8 +62,9 @@ Filter pods by part of the name, "," is a separator
 kube-logs-fzf -p my_pod_one,my_pod_t 
 ```
 
-Filter pods by part of the name and skip picking stage
-NOTE! This will not work if there is more than one pod in the list
+Filter pods by part of the name and skip picking stage.
+
+NOTE! This will not work if there is more than one pod in the list. Use `-A` advanced mode to view logs for more than 1 pod. 
 ```bash
 kube-logs-fzf -p my_pod_one,my_pod_t -S 
 ```
